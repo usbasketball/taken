@@ -6,7 +6,6 @@ class Settings(BaseSettings):
     admin_password: str = "changeme"
     jwt_secret: str = "insecure-dev-secret-change-in-production"
     jwt_expire_days: int = 7
-    api_key: str = ""
     auth0_domain: str = ""
     auth0_audience: str = ""
     foys_federation_id: str = "52cfa65e-9782-4a81-ab35-e2f981fcb7a9"

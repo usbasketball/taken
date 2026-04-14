@@ -32,7 +32,7 @@ US Basketball Amsterdam (~125 members, 12 teams, ~126 home games/season) needs a
 | **Database**      | PostgreSQL on Neon                                 | Native types, Vercel Marketplace, free tier                                                                   |
 | **Optimization**  | Google OR-Tools (CP-SAT)                           | Constraint satisfaction + optimization solver — ideal for duty assignment                                     |
 | **Auth (admin)**  | JWT Bearer tokens (`python-jose`)                  | Board member login with password                                                                              |
-| **Auth (public)** | API key + Auth0 token verification (`PyJWKClient`) | Dual protection: API key validates the caller is the website, Auth0 token validates the user is a club member |
+| **Auth (public)** | Auth0 token verification (`PyJWKClient`)           | Verifies the user is an authenticated club member                                                             |
 | **Testing**       | pytest + httpx                                     | Standard Python testing                                                                                       |
 | **Deploy**        | Vercel (Fluid Compute)                             | Same platform as website                                                                                      |
 
@@ -68,7 +68,7 @@ taken/
       audit.py                  # GET /seasons/{sid}/audit
       export.py                 # GET /seasons/{sid}/export
       publish.py                # POST /seasons/{sid}/publish
-      public.py                 # GET /public/schema (API-key + Auth0 auth)
+      public.py                 # GET /public/schema (Auth0 auth)
     schemas/                    # Pydantic request/response models
       season.py
       member.py
@@ -93,7 +93,6 @@ taken/
     middleware/
       __init__.py
       auth.py                   # JWT verification for admin routes
-      api_key.py                # API key verification for public routes
       auth0.py                  # Auth0 token verification for public routes
   alembic/                      # Migration files
     versions/
@@ -206,7 +205,7 @@ sum(zaal[ts, :]) == 1
 
 ## API Endpoints
 
-All admin routes require `Authorization: Bearer <jwt>`. Public routes require both `x-api-key` and Auth0 token.
+All admin routes require `Authorization: Bearer <jwt>`. Public routes require `Authorization: Bearer <auth0_token>`.
 
 ### Auth
 
@@ -278,17 +277,14 @@ GET    /seasons/{sid}/export                           → .xlsx file
 POST   /seasons/{sid}/publish                          → { ok, published_at }
 ```
 
-### Public (for website) — requires both API key + Auth0 token
+### Public (for website) — requires Auth0 token
 
 ```
 GET    /public/schema                                  → PublicSchema
 GET    /public/schema?team=H3                          → PublicSchema (filtered)
 ```
 
-**Dual auth on public routes:**
-
-1. `x-api-key` header — validates the caller is the club website (not a random client)
-2. `Authorization: Bearer <auth0_token>` — the website forwards the user's Auth0 JWT; the taken API verifies it against Auth0's JWKS endpoint (`https://<AUTH0_DOMAIN>/.well-known/jwks.json`) to confirm the user is an authenticated club member
+`Authorization: Bearer <auth0_token>` — the website forwards the user's Auth0 JWT; the taken API verifies it against Auth0's JWKS endpoint (`https://<AUTH0_DOMAIN>/.well-known/jwks.json`) to confirm the user is an authenticated club member.
 
 The taken API needs these env vars for Auth0 verification:
 
@@ -420,15 +416,14 @@ Response shape for `/public/schema`:
 
 ### Phase 5: Public API + Publish
 
-- Implement API-key middleware (`app/middleware/api_key.py`)
 - Implement Auth0 token verification middleware (`app/middleware/auth0.py`) — verifies user JWT against Auth0 JWKS
-- Combine both as dependencies on public routes (both must pass)
+- Add as dependency on public routes
 - Implement `GET /public/schema`
 - Implement `POST /seasons/{sid}/publish`
 - Implement `services/validation.py` — constraint violation checks
-- Write tests for public API (mock both API key and Auth0 token verification)
+- Write tests for public API (mock Auth0 token verification)
 
-**Deliverable:** Website can fetch and display duty schedule. Endpoint is protected by both API key (service-level) and Auth0 token (user-level).
+**Deliverable:** Website can fetch and display duty schedule. Endpoint is protected by Auth0 token (user must be authenticated club member).
 
 ### Phase 6: Export + Polish
 
@@ -465,7 +460,6 @@ from app.main import app  # FastAPI instance
 DATABASE_URL=postgres://...     # Auto-provisioned by Neon
 ADMIN_PASSWORD=<bcrypt hash>
 JWT_SECRET=<random 256-bit hex>
-API_KEY=<for website integration>
 AUTH0_DOMAIN=<tenant>.auth0.com # For verifying user tokens from the website
 AUTH0_AUDIENCE=<api-audience>   # Auth0 API identifier or client ID
 FOYS_FEDERATION_ID=52cfa65e-9782-4a81-ab35-e2f981fcb7a9
