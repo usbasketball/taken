@@ -38,6 +38,7 @@ _TEAMS: list[TeamInfo] = [
 
 _BY_CODE: dict[str, TeamInfo] = {t.code: t for t in _TEAMS}
 _BY_FULL_NAME: dict[str, TeamInfo] = {t.full_name: t for t in _TEAMS}
+_BY_TEAM_ID: dict[int, TeamInfo] = {t.team_id: t for t in _TEAMS}
 
 ALL_CODES: frozenset[str] = frozenset(_BY_CODE)
 ALL_FULL_NAMES: frozenset[str] = frozenset(_BY_FULL_NAME)
@@ -46,6 +47,11 @@ ALL_FULL_NAMES: frozenset[str] = frozenset(_BY_FULL_NAME)
 def get_by_code(code: str) -> TeamInfo | None:
     """Look up team by code, e.g. 'H3' → TeamInfo(code='H3', full_name='MSE-3', ...)."""
     return _BY_CODE.get(code)
+
+
+def get_by_team_id(team_id: int) -> TeamInfo | None:
+    """Look up team by foys.io team ID, e.g. 27412 → TeamInfo(code='H3', ...)."""
+    return _BY_TEAM_ID.get(team_id)
 
 
 def get_by_full_name(full_name: str) -> TeamInfo | None:

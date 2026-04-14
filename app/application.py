@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.routers import auth, seasons, games, games_sync
+from app.routers import auth, seasons, matches, matches_sync
 
 app = FastAPI(
     title="Taken API",
@@ -10,8 +10,8 @@ app = FastAPI(
 
 app.include_router(auth.router)
 app.include_router(seasons.router)
-app.include_router(games.router)
-app.include_router(games_sync.router)
+app.include_router(matches.router)
+app.include_router(matches_sync.router)
 
 
 @app.get("/health", tags=["meta"])

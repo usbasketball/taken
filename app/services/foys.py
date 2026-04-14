@@ -1,9 +1,29 @@
 """
 foys.io API client, response normalization, and sync diff computation.
 
-foys.io is an external scheduling platform.  Game data for the club is
-fetched from the public match API and filtered to only home games of our
-organisation.
+foys.io is an external scheduling platform. Game data for the club is fetched
+from the management API, one request per team, and merged into a single list.
+
+Example response item from:
+  GET https://api.foys.io/competition/management-api/v1/matches
+      ?teamId=27380&showOnlyMatchesWithOrganisationsTeams=true
+      &showMatchesWhereClubIsAwayTeam=false&skipCount=0&maxResultCount=100
+
+  {
+    "id": 266795,
+    "status": "Final",
+    "date": "2025-10-05T00:00:00Z",
+    "startTime": "15:15:00",
+    "homeTeam": {"id": 27380, "name": "VSE-3"},
+    "awayTeam": {"id": 27061, "name": "VSE-1*"},
+    "homeOrganisation": {"id": "2f1e5e8e-...", "name": "U.S."},
+    "awayOrganisation": {"id": "c9ea6090-...", "name": "LUSV Basketbal"},
+    "field": {"id": "3553f8cc-...", "name": "Veld 2"},
+    "competitionType": {"id": 1, "name": "Competitie - Regionaal"},
+    ...
+  }
+
+The top-level response wraps items: {"totalCount": 11, "items": [...]}
 """
 from __future__ import annotations
 
@@ -16,12 +36,12 @@ import httpx
 
 from app.config import settings
 
-FOYS_API_URL = "https://api.foys.io/competition/public-api/v1/matches/all"
+FOYS_API_BASE = "https://api.foys.io/competition/management-api/v1/matches"
 
 
 @dataclass
 class NormalizedMatch:
-    external_id: str
+    match_id: str
     home_team_name: str
     home_team_code: str
     away_team_name: str
@@ -30,8 +50,9 @@ class NormalizedMatch:
     start_time: time
     field_name: str | None
     competition: str | None
-    needs_nbb_referees: bool
+    use_nbb_ref: bool
     use_24s: bool
+    status: str = "Scheduled"
 
 
 @dataclass
@@ -59,7 +80,11 @@ class SyncDiff:
 # ---------------------------------------------------------------------------
 
 def normalize_field_name(raw: str | None) -> str | None:
-    """'1' → 'Veld 1', 'Veld 2' → 'Veld 2', None / '' → None."""
+    """'1' → 'Veld 1', 'Veld 2' → 'Veld 2', None / '' → None.
+
+    The management API already returns 'Veld 2' style names, but this is kept
+    as a safety net.
+    """
     if not raw:
         return None
     stripped = raw.strip()
@@ -73,73 +98,62 @@ def normalize_team_name(name: str) -> str:
     return name.replace("*", "").strip()
 
 
-def _away_full_name(m: dict[str, Any]) -> str:
-    away_org = m.get("awayOrganisation")
-    away_name = normalize_team_name(m.get("awayTeamName", ""))
-    if away_org and away_org.get("name"):
-        return f"{away_org['name']} - {away_name}"
-    return away_name
-
-
 # ---------------------------------------------------------------------------
-# Main normalisation / filtering
+# Main normalisation
 # ---------------------------------------------------------------------------
 
 def normalize_matches(raw_matches: list[dict[str, Any]]) -> list[NormalizedMatch]:
     """
-    Filter the full foys.io match list to our club's home games and convert
-    each match to a NormalizedMatch.  Games whose home team code cannot be
-    inferred (i.e. not one of our 12 teams) are silently skipped.
+    Convert a list of raw management API match dicts to NormalizedMatch objects.
+
+    Matches whose homeTeam.id is not one of our 12 registered teams are skipped
+    (e.g. youth or exhibition games that might appear via the management API).
     """
-    from app.services.teams import infer_team_code_from_name, get_by_code
+    from app.services.teams import get_by_team_id
 
     result: list[NormalizedMatch] = []
     for m in raw_matches:
-        # Only our home games
+        home_team = m.get("homeTeam") or {}
+        home_team_id = home_team.get("id")
+        team_info = get_by_team_id(home_team_id) if home_team_id else None
+        if team_info is None:
+            continue  # Unrecognised team — skip
+
+        home_team_code = team_info.code
         home_org = m.get("homeOrganisation") or {}
-        if home_org.get("id") != settings.foys_home_org_id:
-            continue
-
-        home_team_raw = normalize_team_name(m.get("homeTeamName", ""))
-        home_team_code = infer_team_code_from_name(home_team_raw)
-        if home_team_code is None:
-            continue  # Unrecognised team — youth or exhibition game
-
-        home_team_name = f"{home_org.get('name', 'U.S.')} - {home_team_raw}"
+        home_team_name = f"{home_org.get('name', 'U.S.')} - {normalize_team_name(home_team.get('name', ''))}"
 
         # Away team code only when opponent is also our club (internal match)
         away_org = m.get("awayOrganisation") or {}
+        away_team = m.get("awayTeam") or {}
         away_team_code: str | None = None
         if away_org.get("id") == settings.foys_home_org_id:
-            away_raw = normalize_team_name(m.get("awayTeamName", ""))
-            away_team_code = infer_team_code_from_name(away_raw)
+            away_info = get_by_team_id(away_team.get("id"))
+            if away_info:
+                away_team_code = away_info.code
 
-        away_team_name = _away_full_name(m)
+        away_team_name_raw = normalize_team_name(away_team.get("name", ""))
+        away_team_name = (
+            f"{away_org['name']} - {away_team_name_raw}"
+            if away_org.get("name")
+            else away_team_name_raw
+        )
 
         # Date / time
-        date_str: str = m.get("date") or ""
-        if "T" in date_str:
-            date_str = date_str.split("T")[0]
+        date_str: str = (m.get("date") or "").split("T")[0]
         start_time_str = (m.get("startTime") or "00:00")[:5]
-
         try:
             game_date = date.fromisoformat(date_str)
             game_time = time.fromisoformat(start_time_str)
         except ValueError:
             continue
 
-        field_nm = normalize_field_name(m.get("fieldName"))
-        competition: str | None = None
-        comp = m.get("competition")
-        if isinstance(comp, dict):
-            competition = comp.get("name")
-
-        team_info = get_by_code(home_team_code)
-        needs_nbb = team_info.use_nbb_ref if team_info else False
-        use_24s = team_info.use_24s if team_info else False
+        field_nm = normalize_field_name((m.get("field") or {}).get("name"))
+        competition: str | None = (m.get("competitionType") or {}).get("name")
+        status: str = m.get("status") or "Scheduled"
 
         result.append(NormalizedMatch(
-            external_id=str(m["id"]),
+            match_id=str(m["id"]),
             home_team_name=home_team_name,
             home_team_code=home_team_code,
             away_team_name=away_team_name,
@@ -148,26 +162,46 @@ def normalize_matches(raw_matches: list[dict[str, Any]]) -> list[NormalizedMatch
             start_time=game_time,
             field_name=field_nm,
             competition=competition,
-            needs_nbb_referees=needs_nbb,
-            use_24s=use_24s,
+            use_nbb_ref=team_info.use_nbb_ref,
+            use_24s=team_info.use_24s,
+            status=status,
         ))
 
     return result
 
 
 def fetch_home_matches() -> list[NormalizedMatch]:
-    """Fetch and normalise home matches from the foys.io API."""
-    headers = {"x-federationid": settings.foys_federation_id}
+    """Fetch and normalise home matches from the foys.io management API.
+
+    Makes one paginated request per team (12 teams total). Each request only
+    returns home games for that team due to showMatchesWhereClubIsAwayTeam=false.
+    """
+    from app.services.teams import all_teams
+
+    all_raw: list[dict[str, Any]] = []
+    page_size = 100
+
     with httpx.Client(timeout=30) as client:
-        resp = client.get(FOYS_API_URL, headers=headers)
-        resp.raise_for_status()
-        raw = resp.json()
+        for team in all_teams():
+            skip = 0
+            while True:
+                params = {
+                    "teamId": team.team_id,
+                    "showOnlyMatchesWithOrganisationsTeams": "true",
+                    "showMatchesWhereClubIsAwayTeam": "false",
+                    "skipCount": skip,
+                    "maxResultCount": page_size,
+                }
+                resp = client.get(FOYS_API_BASE, params=params)
+                resp.raise_for_status()
+                data = resp.json()
+                items = data.get("items", [])
+                all_raw.extend(items)
+                skip += page_size
+                if skip >= data.get("totalCount", 0):
+                    break
 
-    # API may wrap matches in a top-level key
-    if isinstance(raw, dict):
-        raw = raw.get("matches", raw.get("data", []))
-
-    return normalize_matches(raw)
+    return normalize_matches(all_raw)
 
 
 # ---------------------------------------------------------------------------
@@ -187,23 +221,23 @@ def compute_sync_diff(
     """
     diff = SyncDiff()
 
-    incoming_by_id = {m.external_id: m for m in incoming}
-    existing_by_id = {g.external_id: g for g in existing_games if g.external_id}
+    incoming_by_id = {m.match_id: m for m in incoming}
+    existing_by_id = {g.match_id: g for g in existing_games if g.match_id}
 
     # New games
-    for ext_id, match in incoming_by_id.items():
-        if ext_id not in existing_by_id:
+    for mid, match in incoming_by_id.items():
+        if mid not in existing_by_id:
             diff.added.append(match)
 
     # Updated or removed
-    for ext_id, game in existing_by_id.items():
-        if ext_id not in incoming_by_id:
+    for mid, game in existing_by_id.items():
+        if mid not in incoming_by_id:
             diff.removed.append({
-                "external_id": ext_id,
+                "match_id": mid,
                 "description": f"{game.home_team_name} vs {game.away_team_name} on {game.date}",
             })
         else:
-            match = incoming_by_id[ext_id]
+            match = incoming_by_id[mid]
             changes: list[SyncChange] = []
 
             if str(match.date) != str(game.date):
@@ -219,6 +253,10 @@ def compute_sync_diff(
             if (match.field_name or "") != (game.field_name or ""):
                 changes.append(SyncChange(
                     "field_name", game.field_name or "", match.field_name or ""
+                ))
+            if match.status != (game.status or "Scheduled"):
+                changes.append(SyncChange(
+                    "status", game.status or "Scheduled", match.status
                 ))
 
             if changes:

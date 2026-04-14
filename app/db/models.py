@@ -1,7 +1,3 @@
-"""
-Phase 1 models: seasons, games, timeslots, game_timeslots, sync_log.
-Phase 3 will add: members, assignments, balance_adjustments, config, audit_log.
-"""
 from datetime import date, time, datetime
 
 from sqlalchemy import (
@@ -24,14 +20,14 @@ class Season(Base):
     )
 
 
-class Game(Base):
-    __tablename__ = "games"
+class Match(Base):
+    __tablename__ = "matches"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     season_id: Mapped[str] = mapped_column(
         String, ForeignKey("seasons.name", ondelete="CASCADE"), nullable=False
     )
-    external_id: Mapped[str | None] = mapped_column(String, nullable=True)   # foys.io match ID
+    match_id: Mapped[str] = mapped_column(String, nullable=False)            # foys.io match ID
     home_team_name: Mapped[str] = mapped_column(String, nullable=False)      # "U.S. - MSE-3"
     home_team_code: Mapped[str] = mapped_column(String, nullable=False)      # "H3"
     away_team_code: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -40,9 +36,9 @@ class Game(Base):
     start_time: Mapped[time] = mapped_column(Time, nullable=False)
     field_name: Mapped[str | None] = mapped_column(String, nullable=True)    # "Veld 1"
     competition: Mapped[str | None] = mapped_column(String, nullable=True)
-    needs_nbb_referees: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    use_nbb_ref: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     use_24s: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    is_cancelled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="Scheduled")
     is_manually_edited: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
@@ -61,13 +57,13 @@ class Timeslot(Base):
     zaaldienst_member_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
-class GameTimeslot(Base):
-    """Many-to-many: games belong to timeslots (multiple games can share one timeslot)."""
-    __tablename__ = "game_timeslots"
-    __table_args__ = (PrimaryKeyConstraint("game_id", "timeslot_id"),)
+class MatchTimeslot(Base):
+    """Many-to-many: matches belong to timeslots (multiple matches can share one timeslot)."""
+    __tablename__ = "match_timeslots"
+    __table_args__ = (PrimaryKeyConstraint("match_row_id", "timeslot_id"),)
 
-    game_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("games.id", ondelete="CASCADE"), nullable=False
+    match_row_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("matches.id", ondelete="CASCADE"), nullable=False
     )
     timeslot_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("timeslots.id", ondelete="CASCADE"), nullable=False
@@ -85,6 +81,6 @@ class SyncLog(Base):
     synced_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    games_added: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    games_updated: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    games_removed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    matches_added: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    matches_updated: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    matches_removed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

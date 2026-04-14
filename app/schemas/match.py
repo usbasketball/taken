@@ -6,12 +6,12 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class GameRead(BaseModel):
+class MatchRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     season_id: str
-    external_id: str | None
+    match_id: str
     home_team_name: str
     home_team_code: str
     away_team_name: str
@@ -20,9 +20,9 @@ class GameRead(BaseModel):
     start_time: time
     field_name: str | None
     competition: str | None
-    needs_nbb_referees: bool
+    use_nbb_ref: bool
     use_24s: bool
-    is_cancelled: bool
+    status: str
     is_manually_edited: bool
 
 
@@ -37,7 +37,7 @@ class SyncChangeItem(BaseModel):
 
 
 class SyncAddedItem(BaseModel):
-    external_id: str
+    match_id: str
     home_team_code: str
     home_team_name: str
     away_team_name: str
@@ -47,7 +47,7 @@ class SyncAddedItem(BaseModel):
 
 
 class SyncUpdatedItem(BaseModel):
-    external_id: str
+    match_id: str
     home_team_code: str
     home_team_name: str
     is_manually_edited: bool
@@ -55,7 +55,7 @@ class SyncUpdatedItem(BaseModel):
 
 
 class SyncRemovedItem(BaseModel):
-    external_id: str
+    match_id: str
     description: str
 
 
@@ -65,12 +65,12 @@ class SyncPreviewResponse(BaseModel):
     removed: list[SyncRemovedItem]
     conflicts: list[SyncUpdatedItem] = Field(
         default_factory=list,
-        description="Updated games that are also manually edited — requires explicit resolution",
+        description="Updated matches that are also manually edited — requires explicit resolution",
     )
 
 
 class ConflictResolution(BaseModel):
-    external_id: str
+    match_id: str
     action: Annotated[str, Field(pattern=r"^(keep|overwrite)$")]
 
 
@@ -79,7 +79,7 @@ class SyncApplyRequest(BaseModel):
 
 
 class SyncApplyResponse(BaseModel):
-    games_added: int
-    games_updated: int
-    games_removed: int
+    matches_added: int
+    matches_updated: int
+    matches_removed: int
     conflicts_skipped: int

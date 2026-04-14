@@ -1,19 +1,19 @@
 """
-Games router.
+Matches router.
 
 Phase 2: read-only listing endpoint.
-Phase 3 will add POST/PUT/DELETE for manual game management.
+Phase 3 will add POST/PUT/DELETE for manual match management.
 """
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.db.models import Season, Game
+from app.db.models import Season, Match
 from app.dependencies import get_db
-from app.schemas.game import GameRead
+from app.schemas.match import MatchRead
 
-router = APIRouter(prefix="/seasons/{season_name}/games", tags=["games"])
+router = APIRouter(prefix="/seasons/{season_name}/matches", tags=["matches"])
 
 
 def _get_season_or_404(season_name: str, db: Session) -> Season:
@@ -23,15 +23,15 @@ def _get_season_or_404(season_name: str, db: Session) -> Season:
     return season
 
 
-@router.get("", response_model=list[GameRead])
-def list_games(
+@router.get("", response_model=list[MatchRead])
+def list_matches(
     season_name: str,
     db: Annotated[Session, Depends(get_db)],
-) -> list[Game]:
+) -> list[Match]:
     _get_season_or_404(season_name, db)
     return (
-        db.query(Game)
+        db.query(Match)
         .filter_by(season_id=season_name)
-        .order_by(Game.date, Game.start_time)
+        .order_by(Match.date, Match.start_time)
         .all()
     )
