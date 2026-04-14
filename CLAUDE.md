@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 pip install -e ".[dev]"
 
 # Run dev server
-uvicorn app.main:app --reload
+uvicorn app.application:app --reload
 
 # Run all tests
 pytest
