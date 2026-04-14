@@ -77,7 +77,7 @@ def _apply_match_to_game(game: Game, match: NormalizedMatch) -> None:
     game.field_name = match.field_name
     game.competition = match.competition
     game.needs_nbb_referees = match.needs_nbb_referees
-    game.needs_tafel3 = match.needs_tafel3
+    game.use_24s = match.use_24s
     game.is_manually_edited = False  # Overwrite cleared the manual edit flag
 
 
@@ -94,7 +94,7 @@ def _add_game(db: Session, season_id: str, match: NormalizedMatch) -> Game:
         field_name=match.field_name,
         competition=match.competition,
         needs_nbb_referees=match.needs_nbb_referees,
-        needs_tafel3=match.needs_tafel3,
+        use_24s=match.use_24s,
     )
     db.add(game)
     db.flush()  # Populate game.id

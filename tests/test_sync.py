@@ -71,7 +71,7 @@ def _match(
         field_name=field_name,
         competition="NBB Basketbal Heren 3",
         needs_nbb_referees=False,
-        needs_tafel3=True,
+        use_24s=True,
     )
 
 

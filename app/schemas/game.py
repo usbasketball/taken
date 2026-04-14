@@ -21,7 +21,7 @@ class GameRead(BaseModel):
     field_name: str | None
     competition: str | None
     needs_nbb_referees: bool
-    needs_tafel3: bool
+    use_24s: bool
     is_cancelled: bool
     is_manually_edited: bool
 

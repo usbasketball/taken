@@ -1,5 +1,5 @@
 """
-Phase 1 models: seasons, teams, games, timeslots, game_timeslots, sync_log.
+Phase 1 models: seasons, games, timeslots, game_timeslots, sync_log.
 Phase 3 will add: members, assignments, balance_adjustments, config, audit_log.
 """
 from datetime import date, time, datetime
@@ -24,19 +24,6 @@ class Season(Base):
     )
 
 
-class Team(Base):
-    """Static reference table for the 12 club teams."""
-    __tablename__ = "teams"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    code: Mapped[str] = mapped_column(String, nullable=False, unique=True)   # D1, H3, …
-    full_name: Mapped[str] = mapped_column(String, nullable=False)            # VSE-1, MSE-3, …
-    gender: Mapped[str] = mapped_column(String, nullable=False)               # dames | heren
-    level: Mapped[int] = mapped_column(Integer, nullable=False)               # 1 (highest) – 6
-    is_nbb: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    needs_tafel3: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-
-
 class Game(Base):
     __tablename__ = "games"
 
@@ -54,7 +41,7 @@ class Game(Base):
     field_name: Mapped[str | None] = mapped_column(String, nullable=True)    # "Veld 1"
     competition: Mapped[str | None] = mapped_column(String, nullable=True)
     needs_nbb_referees: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    needs_tafel3: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    use_24s: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_cancelled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_manually_edited: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 

@@ -31,7 +31,7 @@ class NormalizedMatch:
     field_name: str | None
     competition: str | None
     needs_nbb_referees: bool
-    needs_tafel3: bool
+    use_24s: bool
 
 
 @dataclass
@@ -91,7 +91,7 @@ def normalize_matches(raw_matches: list[dict[str, Any]]) -> list[NormalizedMatch
     each match to a NormalizedMatch.  Games whose home team code cannot be
     inferred (i.e. not one of our 12 teams) are silently skipped.
     """
-    from app.services.team_mapping import infer_team_code_from_name, get_by_code
+    from app.services.teams import infer_team_code_from_name, get_by_code
 
     result: list[NormalizedMatch] = []
     for m in raw_matches:
@@ -135,8 +135,8 @@ def normalize_matches(raw_matches: list[dict[str, Any]]) -> list[NormalizedMatch
             competition = comp.get("name")
 
         team_info = get_by_code(home_team_code)
-        needs_nbb = team_info.is_nbb if team_info else False
-        needs_t3 = team_info.needs_tafel3 if team_info else False
+        needs_nbb = team_info.use_nbb_ref if team_info else False
+        use_24s = team_info.use_24s if team_info else False
 
         result.append(NormalizedMatch(
             external_id=str(m["id"]),
@@ -149,7 +149,7 @@ def normalize_matches(raw_matches: list[dict[str, Any]]) -> list[NormalizedMatch
             field_name=field_nm,
             competition=competition,
             needs_nbb_referees=needs_nbb,
-            needs_tafel3=needs_t3,
+            use_24s=use_24s,
         ))
 
     return result

@@ -26,17 +26,6 @@ def upgrade() -> None:
     sa.CheckConstraint(r"name ~ '^\d{4}-\d{4}$'", name='ck_seasons_name_format'),
     sa.PrimaryKeyConstraint('name')
     )
-    op.create_table('teams',
-    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('code', sa.String(), nullable=False),
-    sa.Column('full_name', sa.String(), nullable=False),
-    sa.Column('gender', sa.String(), nullable=False),
-    sa.Column('level', sa.Integer(), nullable=False),
-    sa.Column('is_nbb', sa.Boolean(), nullable=False),
-    sa.Column('needs_tafel3', sa.Boolean(), nullable=False),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('code')
-    )
     op.create_table('games',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('season_id', sa.String(), nullable=False),
@@ -50,7 +39,7 @@ def upgrade() -> None:
     sa.Column('field_name', sa.String(), nullable=True),
     sa.Column('competition', sa.String(), nullable=True),
     sa.Column('needs_nbb_referees', sa.Boolean(), nullable=False),
-    sa.Column('needs_tafel3', sa.Boolean(), nullable=False),
+    sa.Column('use_24s', sa.Boolean(), nullable=False),
     sa.Column('is_cancelled', sa.Boolean(), nullable=False),
     sa.Column('is_manually_edited', sa.Boolean(), nullable=False),
     sa.ForeignKeyConstraint(['season_id'], ['seasons.name'], ondelete='CASCADE'),
@@ -92,6 +81,5 @@ def downgrade() -> None:
     op.drop_table('timeslots')
     op.drop_table('sync_log')
     op.drop_table('games')
-    op.drop_table('teams')
     op.drop_table('seasons')
     # ### end Alembic commands ###
