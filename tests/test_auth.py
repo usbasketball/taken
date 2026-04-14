@@ -20,7 +20,7 @@ def test_health(client):
 
 def test_protected_route_without_token(client):
     resp = client.post("/seasons", json={"name": "2025-2026"})
-    assert resp.status_code == 403  # HTTPBearer returns 403 when header is missing
+    assert resp.status_code == 401  # missing Authorization header
 
 
 def test_protected_route_with_invalid_token(client):

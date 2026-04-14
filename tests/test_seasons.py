@@ -22,7 +22,7 @@ def test_create_season(client, auth_headers):
 
 def test_create_season_requires_auth(client):
     resp = client.post("/seasons", json={"name": "2025-2026"})
-    assert resp.status_code == 403
+    assert resp.status_code == 401  # missing Authorization header
 
 
 def test_get_season(client, auth_headers):
