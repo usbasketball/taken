@@ -2,28 +2,28 @@
 Timeslot management helpers.
 
 A Timeslot represents a unique (season_id, date, start_time) combination.
-Multiple games can share a timeslot (same court block), and one zaaldienst
+Multiple matches can share a timeslot (same court block), and one zaaldienst
 member is assigned per timeslot.
 
-Adjacency: two games are considered adjacent when they are on the same day
+Adjacency: two matches are considered adjacent when they are on the same day
 and within 150 minutes of each other.  Adjacent duties count as a "single"
 duty (×1) in the balance formula; non-adjacent duties count as "double" (×2).
 """
 from __future__ import annotations
 
-from datetime import date, time, timedelta
+from datetime import date, time
 
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-from app.db.models import Timeslot, GameTimeslot
+from app.db.models import Timeslot, MatchTimeslot
 
 
 _ADJACENCY_WINDOW_MINUTES = 150
 
 
 def are_adjacent(date1: date, time1: time, date2: date, time2: time) -> bool:
-    """Return True when two game slots are on the same day and ≤150 min apart."""
+    """Return True when two match slots are on the same day and ≤150 min apart."""
     if date1 != date2:
         return False
     t1_minutes = time1.hour * 60 + time1.minute
@@ -33,8 +33,8 @@ def are_adjacent(date1: date, time1: time, date2: date, time2: time) -> bool:
 
 def find_or_create_timeslot(
     db: Session,
-    season_id: int,
-    game_date: date,
+    season_id: str,
+    match_date: date,
     start_time: time,
 ) -> Timeslot:
     """
@@ -43,13 +43,13 @@ def find_or_create_timeslot(
     """
     ts = (
         db.query(Timeslot)
-        .filter_by(season_id=season_id, date=game_date, start_time=start_time)
+        .filter_by(season_id=season_id, date=match_date, start_time=start_time)
         .first()
     )
     if ts is not None:
         return ts
 
-    ts = Timeslot(season_id=season_id, date=game_date, start_time=start_time)
+    ts = Timeslot(season_id=season_id, date=match_date, start_time=start_time)
     db.add(ts)
     try:
         db.flush()
@@ -57,19 +57,19 @@ def find_or_create_timeslot(
         db.rollback()
         ts = (
             db.query(Timeslot)
-            .filter_by(season_id=season_id, date=game_date, start_time=start_time)
+            .filter_by(season_id=season_id, date=match_date, start_time=start_time)
             .one()
         )
     return ts
 
 
-def link_game_to_timeslot(db: Session, game_id: int, timeslot_id: int) -> None:
-    """Create a GameTimeslot row if it doesn't already exist."""
+def link_match_to_timeslot(db: Session, match_row_id: int, timeslot_id: int) -> None:
+    """Create a MatchTimeslot row if it doesn't already exist."""
     exists = (
-        db.query(GameTimeslot)
-        .filter_by(game_id=game_id, timeslot_id=timeslot_id)
+        db.query(MatchTimeslot)
+        .filter_by(match_row_id=match_row_id, timeslot_id=timeslot_id)
         .first()
     )
     if exists is None:
-        db.add(GameTimeslot(game_id=game_id, timeslot_id=timeslot_id))
+        db.add(MatchTimeslot(match_row_id=match_row_id, timeslot_id=timeslot_id))
         db.flush()
