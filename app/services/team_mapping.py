@@ -1,11 +1,11 @@
 """
 Bidirectional mapping between team codes and team metadata.
 
-Team codes: D1–D6 (dames/women), H1–H6 (heren/men)
-Full names:  VSE-1–VSE-6 (dames), MSE-1–MSE-6 (heren)
+Team codes: D1-D6 (dames/women), H1-H6 (heren/men)
+Full names:  VSE-1-VSE-6 (dames), MSE-1-MSE-6 (heren)
 Levels: 1 = highest, 6 = lowest
 NBB teams (receive federation referees): H1, H2, D1
-Teams requiring tafel-3 (24-sec clock): H1–H4, D1–D3
+Teams requiring tafel-3 (24-sec clock): H1-H4, D1-D3
 """
 from dataclasses import dataclass
 
@@ -15,7 +15,7 @@ class TeamInfo:
     code: str
     full_name: str
     gender: str   # "dames" | "heren"
-    level: int    # 1–6
+    level: int    # 1-6
     is_nbb: bool
     needs_tafel3: bool
 
@@ -95,5 +95,5 @@ def infer_team_code_from_name(home_team_name: str) -> str | None:
 
 
 def all_teams() -> list[TeamInfo]:
-    """Return all 12 teams in order (D1–D6, H1–H6)."""
+    """Return all 12 teams in order (D1-D6, H1-H6)."""
     return list(_TEAMS)

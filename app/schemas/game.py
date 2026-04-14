@@ -10,7 +10,7 @@ class GameRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    season_id: int
+    season_id: str
     external_id: str | None
     home_team_name: str
     home_team_code: str

@@ -208,10 +208,10 @@ def test_are_adjacent_outside_window():
 # Integration tests — use the test DB via the `client` fixture
 # ---------------------------------------------------------------------------
 
-def _create_season(client, auth_headers) -> int:
+def _create_season(client, auth_headers) -> str:
     resp = client.post("/seasons", json={"name": "2025-2026"}, headers=auth_headers)
     assert resp.status_code == 201
-    return resp.json()["id"]
+    return resp.json()["name"]
 
 
 def test_list_games_empty(client, auth_headers):

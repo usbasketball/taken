@@ -15,12 +15,10 @@ from app.db.engine import Base
 
 class Season(Base):
     __tablename__ = "seasons"
+    # name is the PK — format enforced by Pydantic (SeasonCreate) and a DB
+    # CHECK constraint in the Postgres migration (e.g. "2025-2026").
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    is_published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    name: Mapped[str] = mapped_column(String, primary_key=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -43,8 +41,8 @@ class Game(Base):
     __tablename__ = "games"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    season_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("seasons.id", ondelete="CASCADE"), nullable=False
+    season_id: Mapped[str] = mapped_column(
+        String, ForeignKey("seasons.name", ondelete="CASCADE"), nullable=False
     )
     external_id: Mapped[str | None] = mapped_column(String, nullable=True)   # foys.io match ID
     home_team_name: Mapped[str] = mapped_column(String, nullable=False)      # "U.S. - MSE-3"
@@ -67,8 +65,8 @@ class Timeslot(Base):
     __table_args__ = (UniqueConstraint("season_id", "date", "start_time"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    season_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("seasons.id", ondelete="CASCADE"), nullable=False
+    season_id: Mapped[str] = mapped_column(
+        String, ForeignKey("seasons.name", ondelete="CASCADE"), nullable=False
     )
     date: Mapped[date] = mapped_column(Date, nullable=False)
     start_time: Mapped[time] = mapped_column(Time, nullable=False)
@@ -94,8 +92,8 @@ class SyncLog(Base):
     __tablename__ = "sync_log"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    season_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("seasons.id", ondelete="CASCADE"), nullable=False
+    season_id: Mapped[str] = mapped_column(
+        String, ForeignKey("seasons.name", ondelete="CASCADE"), nullable=False
     )
     synced_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

@@ -33,7 +33,7 @@ def are_adjacent(date1: date, time1: time, date2: date, time2: time) -> bool:
 
 def find_or_create_timeslot(
     db: Session,
-    season_id: int,
+    season_id: str,
     game_date: date,
     start_time: time,
 ) -> Timeslot:

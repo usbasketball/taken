@@ -36,11 +36,11 @@ from app.schemas.game import (
 from app.services.foys import fetch_home_matches, compute_sync_diff, NormalizedMatch
 from app.services.timeslot import find_or_create_timeslot, link_game_to_timeslot
 
-router = APIRouter(prefix="/seasons/{season_id}/games", tags=["sync"])
+router = APIRouter(prefix="/seasons/{season_name}/games", tags=["sync"])
 
 
-def _get_season_or_404(season_id: int, db: Session) -> Season:
-    season = db.get(Season, season_id)
+def _get_season_or_404(season_name: str, db: Session) -> Season:
+    season = db.get(Season, season_name)
     if season is None:
         raise HTTPException(status_code=404, detail="Season not found")
     return season
@@ -81,7 +81,7 @@ def _apply_match_to_game(game: Game, match: NormalizedMatch) -> None:
     game.is_manually_edited = False  # Overwrite cleared the manual edit flag
 
 
-def _add_game(db: Session, season_id: int, match: NormalizedMatch) -> Game:
+def _add_game(db: Session, season_id: str, match: NormalizedMatch) -> Game:
     game = Game(
         season_id=season_id,
         external_id=match.external_id,
@@ -105,16 +105,16 @@ def _add_game(db: Session, season_id: int, match: NormalizedMatch) -> Game:
 
 @router.post("/sync", status_code=200)
 def sync_games(
-    season_id: int,
+    season_name: str,
     db: Annotated[Session, Depends(get_db)],
     _auth: Annotated[str, Depends(require_auth)],
     preview: Annotated[bool, Query(description="If true, return diff without applying")] = True,
     body: SyncApplyRequest = None,
 ) -> SyncPreviewResponse | SyncApplyResponse:
-    _get_season_or_404(season_id, db)
+    _get_season_or_404(season_name, db)
 
     incoming = fetch_home_matches()
-    existing = db.query(Game).filter_by(season_id=season_id).all()
+    existing = db.query(Game).filter_by(season_id=season_name).all()
     diff = compute_sync_diff(incoming, existing)
 
     # ---- build existing-game index for quick lookup ----
@@ -153,7 +153,7 @@ def sync_games(
 
     # Add new games
     for match in diff.added:
-        _add_game(db, season_id, match)
+        _add_game(db, season_name, match)
         games_added += 1
 
     # Update or skip modified games
@@ -168,7 +168,7 @@ def sync_games(
                 continue
         _apply_match_to_game(game, updated.match)
         # Re-link timeslot if date/time changed
-        ts = find_or_create_timeslot(db, season_id, updated.match.date, updated.match.start_time)
+        ts = find_or_create_timeslot(db, season_name, updated.match.date, updated.match.start_time)
         link_game_to_timeslot(db, game.id, ts.id)
         games_updated += 1
 
@@ -181,7 +181,7 @@ def sync_games(
 
     # Record sync in audit log
     db.add(SyncLog(
-        season_id=season_id,
+        season_id=season_name,
         games_added=games_added,
         games_updated=games_updated,
         games_removed=games_removed,
