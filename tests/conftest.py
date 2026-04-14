@@ -10,7 +10,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.db.engine import Base
 from app.dependencies import get_db
-from app.main import app
+from app.application import app
 
 TEST_DATABASE_URL = "sqlite:///:memory:"
 

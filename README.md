@@ -8,7 +8,7 @@ Python/FastAPI backend for duty scheduling at [US Basketball Amsterdam](https://
 pip install -e ".[dev]"
 cp .env.example .env  # set DATABASE_URL, ADMIN_PASSWORD, JWT_SECRET
 alembic upgrade head
-uvicorn app.main:app --reload
+uvicorn app.application:app --reload
 ```
 
 API docs available at `http://localhost:8000/docs`.
